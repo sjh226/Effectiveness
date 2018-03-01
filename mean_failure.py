@@ -89,7 +89,12 @@ if __name__ == '__main__':
     df = data_fetch()
 
     mean_fail_df = pd.DataFrame(columns=['assetBU', 'assetAPI', 'assetWellFlac', \
-                                         'surfaceFailureType', 'mean_time_fail'])
+                                         'surfaceFailureType', 'mean_time_fail', \
+                                         'fail_bin'])
     for failure in ['Compressor', 'Separator']:
         fail_df = mean_time(df[df['surfaceFailureType'] == failure], failure)
+        fail_df.loc[:, 'fail_bin'] = pd.cut(fail_df[fail_df['mean_time_fail'].notnull()]['mean_time_fail'], \
+                                            4, labels=['best', 'good', 'bad', 'worst'])
         mean_fail_df = mean_fail_df.append(fail_df)
+        print('Mean time failure for {}:'.format(failure))
+        print(fail_df[fail_df['mean_time_fail'].notnull()].mean())
