@@ -130,8 +130,8 @@ def downtime_histo(df, average):
 
 
 if __name__ == '__main__':
-	# df = down_wells()
+	df = down_wells()
 	# df.to_csv('data/down_failures.csv')
-	df = pd.read_csv('data/down_failures.csv')
+	# df = pd.read_csv('data/down_failures.csv')
 
-	average_down(df)
+	# average_down(df)
