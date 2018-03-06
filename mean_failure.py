@@ -118,14 +118,14 @@ def best_fix(fail_df, fix_df):
 		fail_fix_df = fix_df[(fix_df['surfaceFailureType'] == failure) & \
 							 (fix_df['days_fixed'] >= fail_time)]
 		best_fix_df = best_fix_df.append(fail_fix_df)
+		plot_root_cause(fail_fix_df, failure)
 
 	return best_fix_df[['assetWellFlac', 'WellName', 'surfaceFailureDate', \
 					    'surfaceFailureType', 'surfaceFailureComponent', \
 					    'surfaceFailureSubComponent', 'surfaceFailureManufacturer', \
 					    'surfaceFailureModel', 'surfaceFailureRootCause', \
 					    'surfaceFailureRootCauseOther', 'surfaceFailureDamages', \
-					    'days_fixed']]
-
+					    'days_fixed']].sort_values(['surfaceFailureType', 'days_fixed'])
 
 def plot_fails(df, fail_type):
 	plt.close()
@@ -139,6 +139,25 @@ def plot_fails(df, fail_type):
 	plt.title('Mean Fail Time for {}s'.format(fail_type))
 
 	plt.savefig('images/mean_fail_{}.png'.format(fail_type.lower()))
+
+def plot_root_cause(df, fail_type):
+	plt.close()
+	fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+
+	bar_heights = {}
+
+	for cause in df[df['surfaceFailureRootCause'].notnull()]['surfaceFailureRootCause'].unique():
+		bar_heights[cause] = df[df['surfaceFailureRootCause'] == cause].shape[0]
+
+	ax.bar(bar_heights.keys(), bar_heights.values(), .9)
+
+	plt.xticks(rotation='vertical')
+	plt.xlabel('Surface Failure Root Cause')
+	plt.ylabel('Failure Count')
+	plt.title('Root Cause Counts for {}s'.format(fail_type))
+	plt.tight_layout()
+
+	plt.savefig('images/root_cause_{}.png'.format(fail_type.lower()))
 
 
 if __name__ == '__main__':
