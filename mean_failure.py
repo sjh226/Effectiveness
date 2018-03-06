@@ -21,7 +21,7 @@ def data_fetch():
 		SELECT SFAD.assetBU
 			  ,SFAD.assetAPI
 			  ,SFAD.assetWellFlac
-              ,W.WellName
+			  ,W.WellName
 			  ,SFAD.createdDate
 			  ,SFAD.modifiedDate
 			  ,SFAD.assetName
@@ -40,12 +40,12 @@ def data_fetch():
 			  ,SFAD.surfaceFailureRootCauseOther
 			  ,SFAD.surfaceFailureDamages
 		  FROM [EDW].[Enbase].[SurfaceFailureActionDetailed] AS SFAD
-          JOIN [OperationsDataMart].[Dimensions].[Wells] AS W
-            ON W.WellFlac = SFAD.assetWellFlac
+		  JOIN [OperationsDataMart].[Dimensions].[Wells] AS W
+			ON W.WellFlac = SFAD.assetWellFlac
 		  WHERE SFAD.assetBU = 'WAMSUTTER'
 		  AND SFAD.deletedDate IS NULL
 		  AND (SFAD.surfaceFailureType = 'Compressor'
-            OR SFAD.surfaceFailureComponent = 'Choke Valve/Loop');
+			OR SFAD.surfaceFailureComponent = 'Choke Valve/Loop');
 	""")
 
 	cursor.execute(SQLCommand)
@@ -64,7 +64,7 @@ def data_fetch():
 
 def mean_time(df, fail_type):
 	return_df = pd.DataFrame(columns=['assetBU', 'assetAPI', 'assetWellFlac', \
-                                      'WellName', 'surfaceFailureType', 'mean_time_fail'])
+									  'WellName', 'surfaceFailureType', 'mean_time_fail'])
 
 	df.loc[:, 'last_failure'] = np.nan
 	df.loc[:, 'days_since_fail'] = np.nan
@@ -83,28 +83,30 @@ def mean_time(df, fail_type):
 						{'assetBU': df[df['assetWellFlac'] == flac]['assetBU'].unique()[0], \
 						 'assetAPI': df[df['assetWellFlac'] == flac]['assetAPI'].unique()[0], \
 						 'assetWellFlac': flac, \
-                         'WellName': df[df['assetWellFlac'] == flac]['WellName'].unique()[0], \
+						 'WellName': df[df['assetWellFlac'] == flac]['WellName'].unique()[0], \
 						 'surfaceFailureType': fail_type, \
 						 'mean_time_fail': df[df['assetWellFlac'] == flac]['days_since_fail'].mean()}, \
 						 ignore_index=True)
-	return return_df
+	return return_df, df
 
 def fail_loop(df):
 	mean_fail_df = pd.DataFrame(columns=['assetBU', 'assetAPI', 'assetWellFlac', \
 										 'surfaceFailureType', 'mean_time_fail', \
 										 'fail_bin', 'WellName'])
+	total_detail_df = pd.DataFrame(columns=df.columns)
 	for failure in ['Compressor', 'Separator']:
-		fail_df = mean_time(df[df['surfaceFailureType'] == failure], failure)
+		fail_df, detail_df = mean_time(df[df['surfaceFailureType'] == failure], failure)
 		fail_df.loc[:, 'fail_bin'] = pd.cut(fail_df[fail_df['mean_time_fail'].notnull()]['mean_time_fail'], \
-											4, labels=['best', 'good', 'bad', 'worst'])
+											4, labels=['worst', 'bad', 'good', 'best'])
 		fail_df.loc[:, 'fail_bin_equal'] = pd.qcut(fail_df[fail_df['mean_time_fail'].notnull()]['mean_time_fail'], \
-												   4, labels=['best', 'good', 'bad', 'worst'])
+												   4, labels=['worst', 'bad', 'good', 'best'])
 		mean_fail_df = mean_fail_df.append(fail_df)
-		plot_fails(fail_df[fail_df['mean_time_fail'].notnull()], failure)
+		total_detail_df = total_detail_df.append(detail_df)
+		# plot_fails(fail_df[fail_df['mean_time_fail'].notnull()], failure)
 		# print('Mean time failure for {}:'.format(failure))
 		# print(fail_df[fail_df['mean_time_fail'].notnull()].mean())
 
-	return mean_fail_df.sort_values(['surfaceFailureType', 'mean_time_fail'])
+	return mean_fail_df.sort_values(['surfaceFailureType', 'mean_time_fail']), detail_df
 
 def plot_fails(df, fail_type):
 	plt.close()
@@ -122,7 +124,9 @@ def plot_fails(df, fail_type):
 
 if __name__ == '__main__':
 	df = data_fetch()
+	mean_fail_df, detail_df = fail_loop(df)
+	mean_fail_df.to_csv('data/mean_time_fail.csv')
+	detail_df.to_csv('data/detail_df.csv', encoding='utf-8')
 
-	mean_fail_df = fail_loop(df)
-    mean_fail_df.to_csv('data/mean_time_fail.csv')
-    mean_fail_df = pd.read_csv('data/mean_time_fail.csv')
+	mean_fail_df = pd.read_csv('data/mean_time_fail.csv')
+	detail_df = pd.read_csv('data/detail_df.csv')
