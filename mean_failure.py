@@ -72,20 +72,22 @@ def mean_time(df, fail_type):
 	for flac in df[df['assetWellFlac'].notnull()]['assetWellFlac'].unique():
 		df.loc[df['assetWellFlac'] == flac, 'last_failure'] = \
 			df[df['assetWellFlac'] == flac]['surfaceFailureDate'].shift(1)
+		df.loc[df['assetWellFlac'] == flac, 'next_failure'] = \
+			df[df['assetWellFlac'] == flac]['surfaceFailureDate'].shift(-1)
 		try:
-			df.loc[df['assetWellFlac'] == flac, 'days_since_fail'] = \
-				pd.to_numeric(((df[df['assetWellFlac'] == flac]['surfaceFailureDate'] - \
-				df[df['assetWellFlac'] == flac]['last_failure']) / \
+			df.loc[df['assetWellFlac'] == flac, 'days_fixed'] = \
+				pd.to_numeric(((df[df['assetWellFlac'] == flac]['next_failure'] - \
+				df[df['assetWellFlac'] == flac]['surfaceFailureDate']) / \
 				np.timedelta64(1, 'D')), errors='coerce')
 		except:
-			df.loc[df['assetWellFlac'] == flac, 'days_since_fail'] = np.nan
+			df.loc[df['assetWellFlac'] == flac, 'days_fixed'] = np.nan
 		return_df = return_df.append(\
 						{'assetBU': df[df['assetWellFlac'] == flac]['assetBU'].unique()[0], \
 						 'assetAPI': df[df['assetWellFlac'] == flac]['assetAPI'].unique()[0], \
 						 'assetWellFlac': flac, \
 						 'WellName': df[df['assetWellFlac'] == flac]['WellName'].unique()[0], \
 						 'surfaceFailureType': fail_type, \
-						 'mean_time_fail': df[df['assetWellFlac'] == flac]['days_since_fail'].mean()}, \
+						 'mean_time_fail': df[df['assetWellFlac'] == flac]['days_fixed'].mean()}, \
 						 ignore_index=True)
 	return return_df, df
 
@@ -106,7 +108,24 @@ def fail_loop(df):
 		# print('Mean time failure for {}:'.format(failure))
 		# print(fail_df[fail_df['mean_time_fail'].notnull()].mean())
 
-	return mean_fail_df.sort_values(['surfaceFailureType', 'mean_time_fail']), detail_df
+	return mean_fail_df.sort_values(['surfaceFailureType', 'mean_time_fail']), total_detail_df
+
+def best_fix(fail_df, fix_df):
+	best_fix_df = pd.DataFrame(columns=fix_df.columns)
+	for failure in fail_df['surfaceFailureType'].unique():
+		fail_time = fail_df[(fail_df['surfaceFailureType'] == failure) & \
+							(fail_df['fail_bin_equal'] == 'best')]['mean_time_fail'].min()
+		fail_fix_df = fix_df[(fix_df['surfaceFailureType'] == failure) & \
+							 (fix_df['days_fixed'] >= fail_time)]
+		best_fix_df = best_fix_df.append(fail_fix_df)
+
+	return best_fix_df[['assetWellFlac', 'WellName', 'surfaceFailureDate', \
+					    'surfaceFailureType', 'surfaceFailureComponent', \
+					    'surfaceFailureSubComponent', 'surfaceFailureManufacturer', \
+					    'surfaceFailureModel', 'surfaceFailureRootCause', \
+					    'surfaceFailureRootCauseOther', 'surfaceFailureDamages', \
+					    'days_fixed']]
+
 
 def plot_fails(df, fail_type):
 	plt.close()
@@ -123,10 +142,12 @@ def plot_fails(df, fail_type):
 
 
 if __name__ == '__main__':
-	df = data_fetch()
-	mean_fail_df, detail_df = fail_loop(df)
-	mean_fail_df.to_csv('data/mean_time_fail.csv')
-	detail_df.to_csv('data/detail_df.csv', encoding='utf-8')
+	# df = data_fetch()
+	# mean_fail_df, detail_df = fail_loop(df)
+	# mean_fail_df.to_csv('data/mean_time_fail.csv')
+	# detail_df.to_csv('data/detail_df.csv', encoding='utf-8')
 
 	mean_fail_df = pd.read_csv('data/mean_time_fail.csv')
 	detail_df = pd.read_csv('data/detail_df.csv')
+
+	fix_df = best_fix(mean_fail_df, detail_df)
