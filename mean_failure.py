@@ -4,6 +4,8 @@ import sys
 import pyodbc
 import matplotlib.pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.cross_validation import train_test_split
 
 
 def data_fetch():
@@ -133,7 +135,12 @@ def vectorize(df):
 	X = vect.fit_transform(df[df['surfaceFailureDamages'].notnull()]['surfaceFailureDamages'].values)
 	y = df[df['surfaceFailureDamages'].notnull()]['days_fixed'].values
 	idf = vect.idf_
-	print(vect.vocabulary_)
+
+	X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=87)
+
+	rf = RandomForestRegressor()
+	rf.fit(X_train, y_train)
+	print(rf.score(X_test, y_test))
 
 def plot_fails(df, fail_type):
 	plt.close()
@@ -178,10 +185,10 @@ if __name__ == '__main__':
 	detail_df = pd.read_csv('data/detail_df.csv')
 
 	fix_df = best_fix(mean_fail_df, detail_df)
-	vectorize(fix_df)
+	vectorize(fix_df[fix_df['surfaceFailureType'] == 'Compressor'])
 
-	best_comp_df = fix_df[fix_df['surfaceFailureType'] == 'Compressor'].tail(10)
-	best_choke_df = fix_df[fix_df['surfaceFailureType'] == 'Separator'].tail(10)
-
-	best_comp_df[['surfaceFailureType', 'surfaceFailureRootCause', 'surfaceFailureDamages']].to_csv('data/best_comp.csv', index=False)
-	best_choke_df[['surfaceFailureType', 'surfaceFailureRootCause', 'surfaceFailureDamages']].to_csv('data/best_choke.csv', index=False)
+	# best_comp_df = fix_df[fix_df['surfaceFailureType'] == 'Compressor'].tail(10)
+	# best_choke_df = fix_df[fix_df['surfaceFailureType'] == 'Separator'].tail(10)
+	#
+	# best_comp_df[['surfaceFailureType', 'surfaceFailureRootCause', 'surfaceFailureDamages']].to_csv('data/best_comp.csv', index=False)
+	# best_choke_df[['surfaceFailureType', 'surfaceFailureRootCause', 'surfaceFailureDamages']].to_csv('data/best_choke.csv', index=False)
