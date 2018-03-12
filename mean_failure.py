@@ -118,7 +118,7 @@ def best_fix(fail_df, fix_df):
 		fail_fix_df = fix_df[(fix_df['surfaceFailureType'] == failure) & \
 							 (fix_df['days_fixed'] >= fail_time)]
 		best_fix_df = best_fix_df.append(fail_fix_df)
-		plot_root_cause(fail_fix_df, failure)
+		# plot_root_cause(fail_fix_df, failure)
 
 	return best_fix_df[['assetWellFlac', 'WellName', 'surfaceFailureDate', \
 					    'surfaceFailureType', 'surfaceFailureComponent', \
@@ -170,3 +170,8 @@ if __name__ == '__main__':
 	detail_df = pd.read_csv('data/detail_df.csv')
 
 	fix_df = best_fix(mean_fail_df, detail_df)
+	best_comp_df = fix_df[fix_df['surfaceFailureType'] == 'Compressor'].tail(10)
+	best_choke_df = fix_df[fix_df['surfaceFailureType'] == 'Separator'].tail(10)
+
+	best_comp_df[['surfaceFailureType', 'surfaceFailureRootCause', 'surfaceFailureDamages']].to_csv('data/best_comp.csv', index=False)
+	best_choke_df[['surfaceFailureType', 'surfaceFailureRootCause', 'surfaceFailureDamages']].to_csv('data/best_choke.csv', index=False)
