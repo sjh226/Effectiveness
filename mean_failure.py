@@ -3,6 +3,7 @@ import pandas as pd
 import sys
 import pyodbc
 import matplotlib.pyplot as plt
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 def data_fetch():
@@ -127,6 +128,13 @@ def best_fix(fail_df, fix_df):
 					    'surfaceFailureRootCauseOther', 'surfaceFailureDamages', \
 					    'days_fixed']].sort_values(['surfaceFailureType', 'days_fixed'])
 
+def vectorize(df):
+	vect = TfidfVectorizer(stop_words='english')
+	X = vect.fit_transform(df[df['surfaceFailureDamages'].notnull()]['surfaceFailureDamages'].values)
+	y = df[df['surfaceFailureDamages'].notnull()]['days_fixed'].values
+	idf = vect.idf_
+	print(vect.vocabulary_)
+
 def plot_fails(df, fail_type):
 	plt.close()
 	fig, ax = plt.subplots(1, 1, figsize=(10, 10))
@@ -170,6 +178,8 @@ if __name__ == '__main__':
 	detail_df = pd.read_csv('data/detail_df.csv')
 
 	fix_df = best_fix(mean_fail_df, detail_df)
+	vectorize(fix_df)
+
 	best_comp_df = fix_df[fix_df['surfaceFailureType'] == 'Compressor'].tail(10)
 	best_choke_df = fix_df[fix_df['surfaceFailureType'] == 'Separator'].tail(10)
 
