@@ -4,8 +4,11 @@ import sys
 import pyodbc
 import matplotlib.pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.cross_validation import train_test_split
+import nltk
+# nltk.download('punkt')
+from nltk.stem.porter import PorterStemmer
 
 
 def data_fetch():
@@ -130,17 +133,35 @@ def best_fix(fail_df, fix_df):
 					    'surfaceFailureRootCauseOther', 'surfaceFailureDamages', \
 					    'days_fixed']].sort_values(['surfaceFailureType', 'days_fixed'])
 
+def tokenize(text):
+    tokens = nltk.word_tokenize(text)
+    stems = []
+    for item in tokens:
+        stems.append(PorterStemmer().stem(item))
+    return stems
+
 def vectorize(df):
-	vect = TfidfVectorizer(stop_words='english')
-	X = vect.fit_transform(df[df['surfaceFailureDamages'].notnull()]['surfaceFailureDamages'].values)
-	y = df[df['surfaceFailureDamages'].notnull()]['days_fixed'].values
+	df.loc[:, 'fail_bin_equal'] = pd.qcut(df['days_fixed'], 4, \
+							      labels=[0, 1, 2, 3])
+
+	vect = TfidfVectorizer(max_df=1.0, min_df=0.0, lowercase=True, \
+						   stop_words='english', tokenizer=tokenize, \
+						   ngram_range=(1,5))
+	X = vect.fit_transform(df['surfaceFailureDamages'].values)
 	idf = vect.idf_
 
-	X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=87)
+	# y_r = df['days_fixed']
+	# X_train, X_test, yr_train, yr_test = train_test_split(X, y_r, test_size=0.25, random_state=87)
+	# rf = RandomForestRegressor(random_state=86)
+	# rf.fit(X_train, yr_train)
+	# print('Regressor Score:\n', rf.score(X_test, yr_test))
 
-	rf = RandomForestRegressor()
-	rf.fit(X_train, y_train)
-	print(rf.score(X_test, y_test))
+	y_c = df['fail_bin_equal']
+	X_train, X_test, yc_train, yc_test = train_test_split(X, y_c, test_size=0.25, random_state=13)
+
+	rfc = RandomForestClassifier(random_state=12)
+	rfc.fit(X_train, yc_train)
+	print('RF Classifier Score:\n', rfc.score(X_test, yc_test))
 
 def plot_fails(df, fail_type):
 	plt.close()
@@ -185,7 +206,9 @@ if __name__ == '__main__':
 	detail_df = pd.read_csv('data/detail_df.csv')
 
 	fix_df = best_fix(mean_fail_df, detail_df)
-	vectorize(fix_df[fix_df['surfaceFailureType'] == 'Compressor'])
+	vectorize(fix_df[(fix_df['surfaceFailureType'] == 'Compressor') & \
+					 (fix_df['days_fixed'].notnull()) & \
+					 (fix_df['surfaceFailureDamages'].notnull())])
 
 	# best_comp_df = fix_df[fix_df['surfaceFailureType'] == 'Compressor'].tail(10)
 	# best_choke_df = fix_df[fix_df['surfaceFailureType'] == 'Separator'].tail(10)
