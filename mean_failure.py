@@ -9,6 +9,7 @@ from sklearn.cross_validation import train_test_split
 import nltk
 # nltk.download('punkt')
 from nltk.stem.porter import PorterStemmer
+import string
 
 
 def data_fetch():
@@ -127,26 +128,27 @@ def best_fix(fail_df, fix_df):
 		# plot_root_cause(fail_fix_df, failure)
 
 	return best_fix_df[['assetWellFlac', 'WellName', 'surfaceFailureDate', \
-					    'surfaceFailureType', 'surfaceFailureComponent', \
-					    'surfaceFailureSubComponent', 'surfaceFailureManufacturer', \
-					    'surfaceFailureModel', 'surfaceFailureRootCause', \
-					    'surfaceFailureRootCauseOther', 'surfaceFailureDamages', \
-					    'days_fixed']].sort_values(['surfaceFailureType', 'days_fixed'])
+						'surfaceFailureType', 'surfaceFailureComponent', \
+						'surfaceFailureSubComponent', 'surfaceFailureManufacturer', \
+						'surfaceFailureModel', 'surfaceFailureRootCause', \
+						'surfaceFailureRootCauseOther', 'surfaceFailureDamages', \
+						'days_fixed']].sort_values(['surfaceFailureType', 'days_fixed'])
 
 def tokenize(text):
-    tokens = nltk.word_tokenize(text)
-    stems = []
-    for item in tokens:
-        stems.append(PorterStemmer().stem(item))
-    return stems
+	text = "".join([ch for ch in text if ch not in string.punctuation])
+	tokens = nltk.word_tokenize(text)
+	stems = []
+	for item in tokens:
+		stems.append(PorterStemmer().stem(item))
+	return stems
 
 def vectorize(df):
 	df.loc[:, 'fail_bin_equal'] = pd.qcut(df['days_fixed'], 4, \
-							      labels=[0, 1, 2, 3])
+								  labels=[0, 1, 2, 3])
 
-	vect = TfidfVectorizer(max_df=1.0, min_df=0.0, lowercase=True, \
+	vect = TfidfVectorizer(max_df=0.75, min_df=0.3, lowercase=True, \
 						   stop_words='english', tokenizer=tokenize, \
-						   ngram_range=(1,5))
+						   ngram_range=(1,3))
 	X = vect.fit_transform(df['surfaceFailureDamages'].values)
 	idf = vect.idf_
 
@@ -162,6 +164,7 @@ def vectorize(df):
 	rfc = RandomForestClassifier(random_state=12)
 	rfc.fit(X_train, yc_train)
 	print('RF Classifier Score:\n', rfc.score(X_test, yc_test))
+	print(vect.get_feature_names()[list(rfc.feature_importances_).index(max(rfc.feature_importances_))])
 
 def plot_fails(df, fail_type):
 	plt.close()
