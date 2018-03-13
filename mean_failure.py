@@ -10,6 +10,7 @@ import nltk
 # nltk.download('punkt')
 from nltk.stem.porter import PorterStemmer
 import string
+from heapq import nlargest
 
 
 def data_fetch():
@@ -146,7 +147,7 @@ def vectorize(df):
 	df.loc[:, 'fail_bin_equal'] = pd.qcut(df['days_fixed'], 4, \
 								  labels=[0, 1, 2, 3])
 
-	vect = TfidfVectorizer(max_df=0.75, min_df=0.3, lowercase=True, \
+	vect = TfidfVectorizer(max_df=1.0, min_df=0.0, lowercase=True, \
 						   stop_words='english', tokenizer=tokenize, \
 						   ngram_range=(1,3))
 	X = vect.fit_transform(df['surfaceFailureDamages'].values)
@@ -164,7 +165,9 @@ def vectorize(df):
 	rfc = RandomForestClassifier(random_state=12)
 	rfc.fit(X_train, yc_train)
 	print('RF Classifier Score:\n', rfc.score(X_test, yc_test))
-	print(vect.get_feature_names()[list(rfc.feature_importances_).index(max(rfc.feature_importances_))])
+
+	this = [list(rfc.feature_importances_).index(i) for i in nlargest(30, list(rfc.feature_importances_))]
+	print(np.array(vect.get_feature_names())[this])
 
 def plot_fails(df, fail_type):
 	plt.close()
