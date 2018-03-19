@@ -169,8 +169,9 @@ def vectorize(df, fail):
 	top_idx = [list(rfc.feature_importances_).index(i) for i in \
 			   nlargest(30, list(rfc.feature_importances_))]
 	top_words = np.array(vect.get_feature_names())[top_idx]
+	print(top_words)
 
-	np.savetxt('data/{}_top_words.csv'.format(fail), top_words)
+	np.savetxt('data/{}_top_words.csv'.format(fail), top_words, fmt='%s', delimiter=',')
 
 def model_fail(df):
 	plt.close()
@@ -234,10 +235,10 @@ if __name__ == '__main__':
 	detail_df = pd.read_csv('data/detail_df.csv')
 
 	fix_df = best_fix(mean_fail_df, detail_df)
-	# for fail_type in ['Compressor', 'Separator']:
-	# 	vectorize(fix_df[(fix_df['surfaceFailureType'] == fail_type) & \
-	# 					 (fix_df['days_fixed'].notnull()) & \
-	# 					 (fix_df['surfaceFailureDamages'].notnull())], fail_type)
+	for fail_type in ['Compressor', 'Separator']:
+		vectorize(fix_df[(fix_df['surfaceFailureType'] == fail_type) & \
+						 (fix_df['days_fixed'].notnull()) & \
+						 (fix_df['surfaceFailureDamages'].notnull())], fail_type)
 
 	model_fail(detail_df)
 
