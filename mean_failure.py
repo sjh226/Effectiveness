@@ -143,7 +143,7 @@ def tokenize(text):
 		stems.append(PorterStemmer().stem(item))
 	return stems
 
-def vectorize(df):
+def vectorize(df, fail):
 	df.loc[:, 'fail_bin_equal'] = pd.qcut(df['days_fixed'], 4, \
 								  labels=[0, 1, 2, 3])
 
@@ -164,10 +164,32 @@ def vectorize(df):
 
 	rfc = RandomForestClassifier(random_state=12)
 	rfc.fit(X_train, yc_train)
-	print('RF Classifier Score:\n', rfc.score(X_test, yc_test))
+	print('RF Classifier Score for {}:\n'.format(fail), rfc.score(X_test, yc_test))
 
-	this = [list(rfc.feature_importances_).index(i) for i in nlargest(30, list(rfc.feature_importances_))]
-	print(np.array(vect.get_feature_names())[this])
+	top_idx = [list(rfc.feature_importances_).index(i) for i in \
+			   nlargest(30, list(rfc.feature_importances_))]
+	top_words = np.array(vect.get_feature_names())[top_idx]
+
+	np.savetxt('data/{}_top_words.csv'.format(fail), top_words)
+
+def model_fail(df):
+	plt.close()
+	fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+
+	comp_df = df[df['surfaceFailureType'] == 'Compressor']
+
+	manu_fails = {}
+	for manu in comp_df['surfaceFailureManufacturer'].unique():
+		manu_fails[manu] = comp_df[comp_df['surfaceFailureManufacturer'] == manu].shape[0]
+
+	ax.bar(range(len(manu_fails)), list(manu_fails.values()), 1, align='center')
+
+	plt.xticks(range(len(manu_fails)), list(manu_fails.keys()), rotation='vertical')
+	plt.xlabel('Compressor Manufacturer')
+	plt.ylabel('Count of Failures')
+	plt.title('Compressor Failure Counts by Manufacturer')
+
+	plt.savefig('images/comp_manu_fail.png')
 
 def plot_fails(df, fail_type):
 	plt.close()
@@ -203,18 +225,21 @@ def plot_root_cause(df, fail_type):
 
 
 if __name__ == '__main__':
-	# df = data_fetch()
-	# mean_fail_df, detail_df = fail_loop(df)
-	# mean_fail_df.to_csv('data/mean_time_fail.csv')
-	# detail_df.to_csv('data/detail_df.csv', encoding='utf-8')
+	df = data_fetch()
+	mean_fail_df, detail_df = fail_loop(df)
+	mean_fail_df.to_csv('data/mean_time_fail.csv')
+	detail_df.to_csv('data/detail_df.csv', encoding='utf-8')
 
 	mean_fail_df = pd.read_csv('data/mean_time_fail.csv')
 	detail_df = pd.read_csv('data/detail_df.csv')
 
 	fix_df = best_fix(mean_fail_df, detail_df)
-	vectorize(fix_df[(fix_df['surfaceFailureType'] == 'Compressor') & \
-					 (fix_df['days_fixed'].notnull()) & \
-					 (fix_df['surfaceFailureDamages'].notnull())])
+	# for fail_type in ['Compressor', 'Separator']:
+	# 	vectorize(fix_df[(fix_df['surfaceFailureType'] == fail_type) & \
+	# 					 (fix_df['days_fixed'].notnull()) & \
+	# 					 (fix_df['surfaceFailureDamages'].notnull())], fail_type)
+
+	model_fail(detail_df)
 
 	# best_comp_df = fix_df[fix_df['surfaceFailureType'] == 'Compressor'].tail(10)
 	# best_choke_df = fix_df[fix_df['surfaceFailureType'] == 'Separator'].tail(10)
