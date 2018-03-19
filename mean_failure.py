@@ -169,7 +169,6 @@ def vectorize(df, fail):
 	top_idx = [list(rfc.feature_importances_).index(i) for i in \
 			   nlargest(30, list(rfc.feature_importances_))]
 	top_words = np.array(vect.get_feature_names())[top_idx]
-	print(top_words)
 
 	np.savetxt('data/{}_top_words.csv'.format(fail), top_words, fmt='%s', delimiter=',')
 
